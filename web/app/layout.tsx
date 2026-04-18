@@ -36,10 +36,7 @@ export default function RootLayout({
         <main className="w-full max-w-[390px] min-h-screen flex flex-col bg-deep-black shadow-2xl relative pb-20">
           {/* Top Navigation Bar */}
           <header className="flex items-center justify-between px-4 py-4 border-b border-white/5 bg-deep-black/50 backdrop-blur-md sticky top-0 z-50">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-charcoal border border-white/10 text-[11px] font-bold hover:bg-white/5 transition-colors">
-              <ArrowLeft className="w-3 h-3" />
-              Back
-            </button>
+            <div className="w-20" /> {/* Spacer to keep title centered */}
 
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1.5">
