@@ -1,62 +1,85 @@
 "use client";
 
 import { Trophy, Shield, Zap } from "lucide-react";
+import { useAccount, useReadContract } from "wagmi";
+import { CONTRACT_ADDRESS, ABI } from "./constants";
 
 export default function UserProfile() {
-  // Placeholder data
-  const userData = {
-    address: "0x1234...5678",
-    xp: 1250,
-    wins: 12,
-    rank: 4,
-  };
+  const { address, isConnected } = useAccount();
 
-  const leaderboard = [
-    { address: "0xabcd...efgh", xp: 5200 },
-    { address: "0x9876...5432", xp: 4800 },
-    { address: "0x1111...2222", xp: 3500 },
-  ];
+  const { data: xp } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: 'playerXP',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address }
+  });
+
+  const { data: wins } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: 'playerWins',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address }
+  });
+
+  const { data: leaderboard } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: 'getLeaderboard',
+  });
+
+  const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 max-w-2xl mx-auto">
-      <div className="bg-gold/10 border border-gold/30 p-6 rounded-xl">
-        <h3 className="text-gold font-bold flex items-center gap-2 mb-4">
-          <Shield className="w-5 h-5" />
+    <div className="space-y-6">
+      <div className="bg-gold/10 border border-gold/30 p-5 rounded-xl">
+        <h3 className="text-gold font-black flex items-center gap-2 mb-4 text-sm uppercase tracking-tight">
+          <Shield className="w-4 h-4" />
           YOUR STATS
         </h3>
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-gold/60">Rank</span>
-            <span className="text-gold font-mono font-bold">#{userData.rank}</span>
+
+        {!isConnected ? (
+          <p className="text-[10px] text-gold/40 font-bold text-center py-2 uppercase italic">Connect wallet to see stats</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <span className="text-[10px] text-gold/60 uppercase font-bold">XP Points</span>
+              <div className="text-xl font-black text-gold flex items-center gap-1">
+                <Zap className="w-4 h-4 fill-gold" /> {xp?.toString() || "0"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-[10px] text-gold/60 uppercase font-bold">Total Wins</span>
+              <div className="text-xl font-black text-gold">
+                {wins?.toString() || "0"}
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gold/60">XP Points</span>
-            <span className="text-gold font-mono font-bold flex items-center gap-1">
-              <Zap className="w-4 h-4 fill-gold" /> {userData.xp}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gold/60">Total Wins</span>
-            <span className="text-gold font-mono font-bold">{userData.wins}</span>
-          </div>
-        </div>
+        )}
       </div>
 
-      <div className="bg-gold/10 border border-gold/30 p-6 rounded-xl">
-        <h3 className="text-gold font-bold flex items-center gap-2 mb-4">
-          <Trophy className="w-5 h-5" />
+      <div className="bg-gold/10 border border-gold/30 p-5 rounded-xl">
+        <h3 className="text-gold font-black flex items-center gap-2 mb-4 text-sm uppercase tracking-tight">
+          <Trophy className="w-4 h-4" />
           LEADERBOARD
         </h3>
         <div className="space-y-3">
-          {leaderboard.map((entry, i) => (
-            <div key={i} className="flex justify-between items-center text-sm">
-              <div className="flex gap-2">
-                <span className="text-gold/40 font-mono w-4">{i + 1}.</span>
-                <span className="text-gold/80 font-mono">{entry.address}</span>
+          {leaderboard && leaderboard.length > 0 ? (
+            leaderboard.slice(0, 5).map((playerAddr, i) => (
+              <div key={i} className="flex justify-between items-center bg-black/40 p-2 rounded-lg border border-gold/5">
+                <div className="flex items-center gap-3">
+                  <span className="text-gold/40 font-black text-xs w-4">{i + 1}</span>
+                  <span className="text-gold/80 font-mono text-xs font-bold">{formatAddress(playerAddr)}</span>
+                </div>
+                {playerAddr === address && (
+                  <span className="bg-gold text-black text-[8px] px-1.5 py-0.5 rounded font-black uppercase">YOU</span>
+                )}
               </div>
-              <span className="text-gold font-bold">{entry.xp} XP</span>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-[10px] text-gold/40 font-bold text-center py-2 uppercase italic">No legends yet...</p>
+          )}
         </div>
       </div>
     </div>

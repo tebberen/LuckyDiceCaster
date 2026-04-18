@@ -22,7 +22,11 @@ export default function Home() {
 
   useEffect(() => {
     const loadSDK = async () => {
-      await sdk.actions.ready();
+      try {
+        await sdk.actions.ready();
+      } catch (error) {
+        console.error("Frame SDK error:", error);
+      }
       setIsSDKLoaded(true);
     };
     if (sdk) {
@@ -31,13 +35,20 @@ export default function Home() {
   }, []);
 
   if (!isSDKLoaded) {
-    return <div className="text-center py-20 text-gold animate-pulse">Initializing Frame...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+        <div className="w-12 h-12 border-4 border-gold border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-gold font-black tracking-widest text-xs animate-pulse">
+          INITIALIZING ARENA...
+        </div>
+      </div>
+    );
   }
 
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <div className="space-y-8 pb-12">
+        <div className="space-y-6 pb-8 animate-in fade-in duration-500">
           <DiceArena />
           <UserProfile />
         </div>

@@ -1,6 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-gold: #fbcc5c;
+  --color-gold-dark: #d4a83e;
+  --color-gold-light: #fde096;
+  --color-background: #000000;
+  --color-foreground: #fbcc5c;
+}
 
 :root {
   --background: #000000;
@@ -10,4 +16,17 @@
 body {
   color: var(--foreground);
   background: var(--background);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+@layer utilities {
+  .text-gold {
+    color: #fbcc5c;
+  }
+  .bg-gold {
+    background-color: #fbcc5c;
+  }
+  .border-gold {
+    border-color: #fbcc5c;
+  }
 }
