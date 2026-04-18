@@ -79,61 +79,61 @@ export default function DiceArena() {
           <button
             key={tier.id}
             onClick={() => setSelectedTier(tier.id)}
-            className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-300 ${
+            className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-300 bg-premium-gradient shadow-premium ${
               selectedTier === tier.id
-                ? "bg-white/20 border-white shadow-lg scale-[1.02]"
-                : "bg-white/5 border-white/10 opacity-60 hover:opacity-100"
+                ? "border-gold-premium ring-2 ring-gold-premium/10 scale-[1.02]"
+                : "border-black/5 opacity-80 hover:opacity-100"
             }`}
           >
-            <span className="absolute -top-2 px-2 py-0.5 bg-white text-[#FBCC5C] text-[7px] font-black rounded-full shadow-lg">
+            <span className="absolute -top-2 px-2 py-0.5 bg-celo-yellow text-deep-black text-[7px] font-black rounded-full shadow-sm">
               {tier.bonus}
             </span>
             <div className="flex items-center gap-1 mt-1">
-               <span className="text-sm font-black text-white">{tier.label}</span>
-               <div className="w-3 h-3 rounded-full bg-white flex items-center justify-center">
-                 <div className="w-1.5 h-1.5 rounded-full bg-[#FBCC5C]/40" />
+               <span className="text-sm font-black text-deep-black">{tier.label}</span>
+               <div className="w-3 h-3 rounded-full bg-celo-yellow flex items-center justify-center">
+                 <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
                </div>
             </div>
-            <span className="text-[8px] text-white/60 font-bold uppercase tracking-widest mt-0.5">entry</span>
+            <span className="text-[8px] text-black/40 font-bold uppercase tracking-widest mt-0.5">entry</span>
           </button>
         ))}
       </div>
 
 
       {/* Core Pot Card */}
-      <div className="bg-[#EAB308]/20 border border-white/20 rounded-3xl p-5 space-y-6 relative overflow-hidden backdrop-blur-sm">
+      <div className="bg-premium-gradient border border-black/5 shadow-premium rounded-3xl p-5 space-y-6 relative overflow-hidden">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <span className="text-[9px] text-white/60 font-black uppercase tracking-widest">POT</span>
+            <span className="text-[9px] text-black/40 font-black uppercase tracking-widest">POT</span>
             <div className="flex items-center gap-2">
-               <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
-                  <Dice6 className="w-3 h-3 text-[#FBCC5C]" />
+               <div className="w-5 h-5 rounded-full bg-celo-yellow flex items-center justify-center shadow-sm">
+                  <Dice6 className="w-3 h-3 text-deep-black" />
                </div>
-               <span className="text-2xl font-black text-white">
+               <span className="text-2xl font-black text-deep-black">
                 {players.length * Number(TIERS[selectedTier].cost)} CELO
                </span>
             </div>
           </div>
           <div className="text-right">
-             <span className="text-[10px] font-black text-white/80">{players.length} / 6 players</span>
-             <div className="w-24 h-1.5 bg-white/20 rounded-full mt-1.5 overflow-hidden">
+             <span className="text-[10px] font-black text-deep-black/80">{players.length} / 6 players</span>
+             <div className="w-24 h-1.5 bg-black/5 rounded-full mt-1.5 overflow-hidden">
                 <div
-                  className="h-full bg-white transition-all duration-500 rounded-full"
+                  className="h-full bg-celo-yellow transition-all duration-500 rounded-full"
                   style={{ width: `${progressWidth}%` }}
                 />
              </div>
-             <span className="text-[8px] text-white font-bold mt-1 block uppercase">{spotsLeft} slots left</span>
+             <span className="text-[8px] text-black/40 font-bold mt-1 block uppercase">{spotsLeft} slots left</span>
           </div>
         </div>
 
         {/* Bonus Notification */}
-        <div className="bg-white/10 border border-white/20 p-3 rounded-2xl flex items-center gap-3">
-           <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-              <Trophy className="w-4 h-4 text-white" />
+        <div className="bg-celo-yellow/10 border border-celo-yellow/20 p-3 rounded-2xl flex items-center gap-3">
+           <div className="w-8 h-8 rounded-xl bg-celo-yellow flex items-center justify-center shadow-sm">
+              <Trophy className="w-4 h-4 text-deep-black" />
            </div>
            <div className="flex-1">
-              <p className="text-[9px] font-black text-white uppercase tracking-tight">Winner gets 2X XP Bonus!</p>
-              <p className="text-[8px] text-white/60 font-medium">Pool is currently filling — play to win!</p>
+              <p className="text-[9px] font-black text-deep-black uppercase tracking-tight">Winner gets 2X XP Bonus!</p>
+              <p className="text-[8px] text-black/40 font-medium">Pool is currently filling — play to win!</p>
            </div>
         </div>
 
@@ -152,21 +152,21 @@ export default function DiceArena() {
                 onClick={() => setSelectedSeat(isSelected ? null : i)}
                 className={`aspect-square rounded-full border flex flex-col items-center justify-center p-2 gap-1.5 transition-all ${
                   isOccupied
-                    ? isYou ? "bg-white border-white shadow-lg shadow-white/20" : "bg-black/40 border-black/20"
+                    ? isYou ? "bg-white border-gold-premium shadow-lg shadow-gold-premium/10" : "bg-black/5 border-black/5"
                     : isSelected
-                      ? "bg-white/30 border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] scale-105"
-                      : "bg-transparent border-white/40 border-dashed hover:border-white hover:bg-white/10"
+                      ? "bg-celo-yellow/10 border-celo-yellow shadow-md scale-105"
+                      : "bg-transparent border-black/10 border-dashed hover:border-celo-yellow/40 hover:bg-celo-yellow/5"
                 }`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black ${
                    isOccupied
-                     ? isYou ? "bg-[#FBCC5C] text-white" : "bg-black/60 text-white"
-                     : isSelected ? "bg-white text-[#FBCC5C]" : "bg-transparent text-white"
-                } ${!isOccupied && !isSelected ? "border border-white/40" : ""}`}>
+                     ? isYou ? "bg-celo-yellow text-deep-black" : "bg-black/10 text-black/40"
+                     : isSelected ? "bg-celo-yellow text-deep-black" : "bg-transparent text-black/20"
+                } ${!isOccupied && !isSelected ? "border border-black/10" : ""}`}>
                   {i + 1}
                 </div>
                 <span className={`text-[8px] font-black truncate w-full text-center uppercase tracking-tighter ${
-                  isOccupied ? isYou ? "text-[#FBCC5C]" : "text-white/40" : isSelected ? "text-white" : "text-white/40"
+                  isOccupied ? isYou ? "text-celo-yellow" : "text-black/20" : isSelected ? "text-deep-black" : "text-black/20"
                 }`}>
                   {isOccupied ? (isYou ? "YOU" : formatAddr(player)) : isSelected ? "SELECTED" : "EMPTY"}
                 </span>
@@ -176,25 +176,25 @@ export default function DiceArena() {
         </div>
 
         {/* Round Status */}
-        <button className="w-full py-3 px-4 bg-white/10 border border-white/20 rounded-2xl flex justify-between items-center hover:bg-white/20 transition-colors">
-           <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">ROUND #17937 • {players.length}/6 PLAYERS</span>
-           <ChevronDown className="w-3 h-3 text-white/40" />
+        <button className="w-full py-3 px-4 bg-black/5 border border-black/5 rounded-2xl flex justify-between items-center hover:bg-black/10 transition-colors">
+           <span className="text-[9px] font-black text-black/40 uppercase tracking-widest">ROUND #17937 • {players.length}/6 PLAYERS</span>
+           <ChevronDown className="w-3 h-3 text-black/20" />
         </button>
 
         {/* Join Action */}
         <div className="pt-2 text-center">
           {isUserIn ? (
-            <div className="py-3 text-[11px] font-black text-white flex flex-col items-center gap-1">
+            <div className="py-3 text-[11px] font-black text-deep-black flex flex-col items-center gap-1">
                <div className="flex items-center gap-1.5">
-                You're in with <span className="bg-white text-[#FBCC5C] px-1.5 py-0.5 rounded">#{players.findIndex(p => p.toLowerCase() === address?.toLowerCase()) + 1}</span>
+                You're in with <span className="bg-celo-yellow text-deep-black px-1.5 py-0.5 rounded shadow-sm">#{players.findIndex(p => p.toLowerCase() === address?.toLowerCase()) + 1}</span>
                </div>
-               <span className="text-[9px] opacity-80 uppercase tracking-widest">waiting for {spotsLeft} more</span>
+               <span className="text-[9px] text-black/40 uppercase tracking-widest font-black">waiting for {spotsLeft} more</span>
             </div>
           ) : (
             <button
               onClick={() => handleJoin(selectedTier, TIERS[selectedTier].cost)}
               disabled={isSigning || isConfirming || (isConnected && selectedSeat === null)}
-              className="w-full py-4 bg-white text-[#FBCC5C] font-black text-xs rounded-2xl shadow-lg hover:bg-white/90 active:scale-95 transition-all disabled:opacity-50 uppercase tracking-widest"
+              className="w-full py-4 bg-celo-yellow text-deep-black font-black text-xs rounded-2xl shadow-premium hover:bg-gold-dark active:scale-[0.98] transition-all disabled:opacity-50 disabled:bg-black/5 disabled:text-black/20 uppercase tracking-widest"
             >
               {!isConnected ? "Connect Wallet" :
                isSigning ? "Signing..." :

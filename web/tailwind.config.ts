@@ -8,13 +8,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#FBCC5C",
-        foreground: "#FFFFFF",
-        gold: {
-          DEFAULT: "#FBCC5C",
-          dark: "#D4A83E",
-          light: "#FDE096",
-        },
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        "celo-yellow": "#FBCC5C",
+        "deep-black": "#101010",
+        "gold-premium": "#E2B33C",
+        "gold-dark": "#D4A83E",
       },
     },
   },
