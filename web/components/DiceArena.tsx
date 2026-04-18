@@ -34,7 +34,7 @@ export default function DiceArena() {
       functionName: 'joinTable',
       args: [selectedTier.id],
       value: parseEther(selectedTier.cost),
-    });
+    } as any);
   };
 
   return (
