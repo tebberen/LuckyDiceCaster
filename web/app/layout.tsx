@@ -32,13 +32,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-black text-gold min-h-screen">
-        <main className="container mx-auto px-4 py-8">
-          <header className="text-center mb-12">
-            <h1 className="text-5xl font-black tracking-tighter mb-2 italic">
+        <main className="max-w-[400px] mx-auto px-4 py-6">
+          <header className="text-center mb-6">
+            <h1 className="text-4xl font-black tracking-tighter mb-1 italic">
               LUCKY DICE
             </h1>
-            <p className="text-gold/60 font-bold tracking-widest uppercase text-xs">
-              Powered by Celo & Farcaster
+            <p className="text-gold/60 font-bold tracking-widest uppercase text-[10px]">
+              Celo Mainnet • Farcaster Frame
             </p>
           </header>
           {children}
