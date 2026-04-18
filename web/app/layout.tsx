@@ -32,24 +32,24 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className="bg-[#FBCC5C] text-white min-h-screen flex flex-col items-center">
-        <main className="w-full max-w-[390px] min-h-screen flex flex-col bg-[#FBCC5C] shadow-2xl relative pb-20">
+      <body className="bg-background text-foreground min-h-screen flex flex-col items-center">
+        <main className="w-full max-w-[390px] min-h-screen flex flex-col bg-background relative pb-20">
           {/* Top Navigation Bar */}
-          <header className="flex items-center justify-between px-4 py-4 border-b border-white/10 bg-[#FBCC5C]/50 backdrop-blur-md sticky top-0 z-50">
+          <header className="flex items-center justify-between px-4 py-4 bg-background sticky top-0 z-50 shadow-sm border-b border-gold-premium/10">
             <div className="w-20" /> {/* Spacer to keep title centered */}
 
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-black tracking-tighter">Lucky Dice Caster</span>
-                <span className="bg-white/20 text-white text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider">BETA</span>
+                <span className="text-sm font-black tracking-tight text-deep-black">Lucky Dice Caster</span>
+                <span className="bg-white/30 text-deep-black text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider">BETA</span>
               </div>
             </div>
 
             <a
               href="#stats"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-[11px] font-bold hover:bg-white/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/40 border border-black/5 text-[11px] font-black text-deep-black hover:bg-white/60 transition-colors shadow-sm"
             >
-              <BarChart3 className="w-3 h-3 text-white" />
+              <BarChart3 className="w-3 h-3" />
               Stats
             </a>
           </header>
@@ -59,9 +59,9 @@ export default function RootLayout({
           </div>
 
           {/* Bottom Navigation Bar */}
-          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-[#FBCC5C]/80 backdrop-blur-xl border-t border-white/10 px-6 py-4 flex justify-center z-50">
-            <button className="p-3 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-all active:scale-90">
-              <Home className="w-6 h-6 text-white" />
+          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] bg-white/80 backdrop-blur-xl border-t border-black/5 px-6 py-4 flex justify-center z-50">
+            <button className="p-3 bg-white rounded-full border border-black/5 shadow-sm hover:shadow-md transition-all active:scale-90 group">
+              <Home className="w-6 h-6 text-deep-black group-hover:text-celo-yellow transition-colors" />
             </button>
           </nav>
         </main>

@@ -5,7 +5,7 @@ import sdk from "@farcaster/frame-sdk";
 import { createConfig, http, WagmiProvider } from "wagmi";
 import { celo } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
+import { RainbowKitProvider, lightTheme } from "@rainbow-me/rainbowkit";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -28,7 +28,9 @@ export default function Home() {
   useEffect(() => {
     const loadSDK = async () => {
       try {
-        await sdk.actions.ready();
+        // Set a short timeout to prevent blocking in non-frame environments
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 1000));
+        await Promise.race([sdk.actions.ready(), timeoutPromise]);
       } catch (error) {
         console.error("Frame SDK error:", error);
       }
@@ -42,8 +44,8 @@ export default function Home() {
   if (!isSDKLoaded) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-        <div className="w-12 h-12 border-4 border-[#FBCC5C] border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-[#FBCC5C] font-black tracking-widest text-xs animate-pulse">
+        <div className="w-12 h-12 border-4 border-celo-yellow border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-deep-black font-black tracking-widest text-[10px] animate-pulse">
           INITIALIZING ARENA...
         </div>
       </div>
@@ -53,8 +55,10 @@ export default function Home() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme({
+        <RainbowKitProvider theme={lightTheme({
           accentColor: '#FBCC5C',
+          accentColorForeground: '#101010',
+          borderRadius: 'medium',
         })}>
           <div className="space-y-6 pb-8 animate-in fade-in duration-500">
             <DiceArena />
