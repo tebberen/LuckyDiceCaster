@@ -12,7 +12,8 @@ contract LuckyDiceCaster {
     enum TableTier { ONE, FIVE, TEN }
 
     struct Table {
-        address[] players;
+        address[6] seats;
+        uint256 playerCount;
         uint256 cost;
     }
 
@@ -37,19 +38,22 @@ contract LuckyDiceCaster {
         _;
     }
 
-    function joinTable(TableTier tier) external payable {
+    function joinTable(TableTier tier, uint8 seatIndex) external payable {
+        require(seatIndex < TABLE_SIZE, "Invalid seat");
         Table storage table = tables[tier];
         require(msg.value == table.cost, "Incorrect CELO amount");
-        require(table.players.length < TABLE_SIZE, "Table full");
+        require(table.playerCount < TABLE_SIZE, "Table full");
+        require(table.seats[seatIndex] == address(0), "Seat occupied");
 
-        for (uint256 i = 0; i < table.players.length; i++) {
-            require(table.players[i] != msg.sender, "Already in table");
+        for (uint256 i = 0; i < TABLE_SIZE; i++) {
+            require(table.seats[i] != msg.sender, "Already in table");
         }
 
-        table.players.push(msg.sender);
-        emit TableJoined(msg.sender, tier, table.players.length);
+        table.seats[seatIndex] = msg.sender;
+        table.playerCount++;
+        emit TableJoined(msg.sender, tier, table.playerCount);
 
-        if (table.players.length == TABLE_SIZE) {
+        if (table.playerCount == TABLE_SIZE) {
             _resolveGame(tier);
         }
     }
@@ -58,16 +62,20 @@ contract LuckyDiceCaster {
         Table storage table = tables[tier];
 
         // Pseudo-random winner selection
-        uint256 winnerIndex = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, table.players))) % TABLE_SIZE;
-        address winner = table.players[winnerIndex];
+        uint256 winnerIndex = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, table.seats))) % TABLE_SIZE;
+        address winner = table.seats[winnerIndex];
 
         uint256 totalPool = table.cost * TABLE_SIZE;
         uint256 payout = table.cost * 5;
         uint256 fee = totalPool - payout; // Should be exactly 1 unit (table.cost)
 
-        // Reset table before transfers to prevent reentrancy issues
-        address[] memory playersToReward = table.players;
-        delete table.players;
+        // Copy players to memory for reward processing and reset table
+        address[] memory playersToReward = new address[](TABLE_SIZE);
+        for (uint256 i = 0; i < TABLE_SIZE; i++) {
+            playersToReward[i] = table.seats[i];
+            table.seats[i] = address(0);
+        }
+        table.playerCount = 0;
 
         (bool success, ) = payable(winner).call{value: payout}("");
         require(success, "Payout failed");
@@ -75,15 +83,16 @@ contract LuckyDiceCaster {
         (bool feeSuccess, ) = payable(owner).call{value: fee}("");
         require(feeSuccess, "Fee transfer failed");
 
-        _updateXPAndLeaderboard(winner, playersToReward);
+        _updateXPAndLeaderboard(winner, playersToReward, table.cost);
 
         emit GameResolved(winner, tier, payout);
     }
 
-    function _updateXPAndLeaderboard(address winner, address[] memory players) internal {
+    function _updateXPAndLeaderboard(address winner, address[] memory players, uint256 cost) internal {
+        uint256 baseXP = cost / 1 ether;
         for (uint256 i = 0; i < players.length; i++) {
             address player = players[i];
-            uint256 xpGain = (player == winner) ? 100 : 10;
+            uint256 xpGain = (player == winner) ? baseXP * 2 : baseXP;
             playerXP[player] += xpGain;
             if (player == winner) playerWins[player]++;
 
@@ -128,7 +137,7 @@ contract LuckyDiceCaster {
         return leaderboard;
     }
 
-    function getTablePlayers(TableTier tier) external view returns (address[] memory) {
-        return tables[tier].players;
+    function getTablePlayers(TableTier tier) external view returns (address[6] memory) {
+        return tables[tier].seats;
     }
 }

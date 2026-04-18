@@ -9,13 +9,14 @@ import { celo } from "wagmi/chains";
 import { CONTRACT_ADDRESS, ABI } from "./constants";
 
 const TIERS = [
-  { id: 0, label: "1", cost: "1", bonus: "+5XP", currency: "CELO" },
-  { id: 1, label: "5", cost: "5", bonus: "+25XP", currency: "CELO" },
-  { id: 2, label: "10", cost: "10", bonus: "+50XP", currency: "CELO" },
+  { id: 0, label: "1", cost: "1", bonus: "+1XP", currency: "CELO" },
+  { id: 1, label: "5", cost: "5", bonus: "+5XP", currency: "CELO" },
+  { id: 2, label: "10", cost: "10", bonus: "+10XP", currency: "CELO" },
 ];
 
 export default function DiceArena() {
   const [selectedTier, setSelectedTier] = useState(0);
+  const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const { address, isConnected, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
   const { switchChain } = useSwitchChain();
@@ -34,6 +35,10 @@ export default function DiceArena() {
     return () => clearInterval(interval);
   }, [refetchPlayers]);
 
+  useEffect(() => {
+    setSelectedSeat(null);
+  }, [selectedTier]);
+
   const handleJoin = (tierId: number, cost: string) => {
     if (!isConnected) {
       if (openConnectModal) openConnectModal();
@@ -45,11 +50,13 @@ export default function DiceArena() {
       return;
     }
 
+    if (selectedSeat === null) return;
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: ABI,
       functionName: 'joinTable',
-      args: [tierId],
+      args: [tierId, selectedSeat],
       value: parseEther(cost),
       chainId: celo.id,
       gas: 200000n,
@@ -57,25 +64,15 @@ export default function DiceArena() {
     } as any);
   };
 
-  const players = (currentPlayers as `0x${string}`[]) || [];
-  const spotsLeft = 6 - players.length;
-  const progressWidth = (players.length / 6) * 100;
+  const players = (currentPlayers as unknown as `0x${string}`[]) || [];
+  const spotsLeft = 6 - players.filter(p => p !== "0x0000000000000000000000000000000000000000").length;
+  const progressWidth = (players.filter(p => p !== "0x0000000000000000000000000000000000000000").length / 6) * 100;
   const isUserIn = players.some(p => p.toLowerCase() === address?.toLowerCase());
 
   const formatAddr = (addr: string) => `${addr.slice(0, 4)}...${addr.slice(-4)}`;
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Table Selection Tabs */}
-      <div className="flex gap-2 p-1 bg-charcoal rounded-2xl border border-white/5">
-        <button className="flex-1 py-2 text-[11px] font-black bg-white/5 border border-white/10 rounded-xl text-celo">
-           CELO
-        </button>
-        <button className="flex-1 py-2 text-[11px] font-black text-white/40 opacity-50 cursor-not-allowed">
-           USDT
-        </button>
-      </div>
-
       {/* Tier Cards */}
       <div className="grid grid-cols-3 gap-2">
         {TIERS.map((tier) => (
@@ -102,22 +99,6 @@ export default function DiceArena() {
         ))}
       </div>
 
-      {/* Live Activity Banner */}
-      <div className="bg-gradient-to-r from-celo/20 to-transparent p-3 rounded-xl border border-celo/10 flex items-center justify-between overflow-hidden relative">
-         <div className="flex items-center gap-2">
-           <span className="bg-celo text-black text-[7px] font-black px-1 rounded animate-pulse">LIVE</span>
-           <div className="flex items-center gap-1 text-[10px] font-bold">
-             <div className="w-3 h-3 rounded-full bg-celo/20 flex items-center justify-center">
-               <Dice6 className="w-2 h-2 text-celo" />
-             </div>
-             <span className="text-celo">180</span>
-             <span className="text-white/40">+ $0.10</span>
-           </div>
-         </div>
-         <div className="text-[9px] font-medium text-white/60 truncate italic">
-            @maduka just won 180 CELO!
-         </div>
-      </div>
 
       {/* Core Pot Card */}
       <div className="bg-charcoal border border-white/5 rounded-3xl p-5 space-y-6 relative overflow-hidden">
@@ -151,7 +132,7 @@ export default function DiceArena() {
               <Trophy className="w-4 h-4 text-celo" />
            </div>
            <div className="flex-1">
-              <p className="text-[9px] font-black text-celo uppercase tracking-tight">0.025 CELO bonus for the winner</p>
+              <p className="text-[9px] font-black text-celo uppercase tracking-tight">Winner gets 2X XP Bonus!</p>
               <p className="text-[8px] text-white/40 font-medium">Pool is currently filling — play to win!</p>
            </div>
         </div>
@@ -160,28 +141,36 @@ export default function DiceArena() {
         <div className="grid grid-cols-3 gap-3">
           {[...Array(6)].map((_, i) => {
             const player = players[i];
-            const isYou = player?.toLowerCase() === address?.toLowerCase();
+            const isOccupied = player && player !== "0x0000000000000000000000000000000000000000";
+            const isYou = isOccupied && player?.toLowerCase() === address?.toLowerCase();
+            const isSelected = selectedSeat === i;
 
             return (
-              <div
+              <button
                 key={i}
-                className={`aspect-square rounded-2xl border flex flex-col items-center justify-center p-2 gap-1.5 transition-all ${
-                  player
-                    ? isYou ? "bg-celo/10 border-celo" : "bg-white/5 border-white/10"
-                    : "bg-charcoal border-white/5 border-dashed"
+                disabled={!!isOccupied || isUserIn}
+                onClick={() => setSelectedSeat(isSelected ? null : i)}
+                className={`aspect-square rounded-full border flex flex-col items-center justify-center p-2 gap-1.5 transition-all ${
+                  isOccupied
+                    ? isYou ? "bg-celo border-celo shadow-lg shadow-celo/20" : "bg-white/10 border-white/20"
+                    : isSelected
+                      ? "bg-celo/20 border-celo shadow-[0_0_15px_rgba(251,204,92,0.3)] scale-105"
+                      : "bg-transparent border-celo/40 border-dashed hover:border-celo hover:bg-celo/5"
                 }`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black ${
-                   player ? "bg-celo text-black" : "bg-white/5 text-white/20"
-                }`}>
+                   isOccupied
+                     ? isYou ? "bg-black text-celo" : "bg-black/40 text-white/60"
+                     : isSelected ? "bg-celo text-black" : "bg-transparent text-celo"
+                } ${!isOccupied && !isSelected ? "border border-celo/40" : ""}`}>
                   {i + 1}
                 </div>
-                <span className={`text-[8px] font-black truncate w-full text-center ${
-                  player ? isYou ? "text-celo" : "text-white/60" : "text-white/20"
+                <span className={`text-[8px] font-black truncate w-full text-center uppercase tracking-tighter ${
+                  isOccupied ? isYou ? "text-black" : "text-white/40" : isSelected ? "text-celo" : "text-celo/40"
                 }`}>
-                  {player ? (isYou ? "YOU" : formatAddr(player)) : "Free"}
+                  {isOccupied ? (isYou ? "YOU" : formatAddr(player)) : isSelected ? "SELECTED" : "EMPTY"}
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -204,12 +193,13 @@ export default function DiceArena() {
           ) : (
             <button
               onClick={() => handleJoin(selectedTier, TIERS[selectedTier].cost)}
-              disabled={isSigning || isConfirming}
+              disabled={isSigning || isConfirming || (isConnected && selectedSeat === null)}
               className="w-full py-4 bg-celo text-black font-black text-xs rounded-2xl shadow-lg hover:bg-celo/90 active:scale-95 transition-all disabled:opacity-50 uppercase tracking-widest"
             >
               {!isConnected ? "Connect Wallet" :
                isSigning ? "Signing..." :
                isConfirming ? "Confirming..." :
+               selectedSeat === null ? "Select a Seat" :
                `Join for ${TIERS[selectedTier].cost} CELO`}
             </button>
           )}
