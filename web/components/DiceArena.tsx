@@ -23,6 +23,12 @@ export default function DiceArena() {
   const { writeContract, data: hash, isPending: isSigning, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
+  useEffect(() => {
+    if (error) {
+      console.error("Transaction Error Details:", error);
+    }
+  }, [error]);
+
   const { data: currentPlayers, refetch: refetchPlayers } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: ABI,
@@ -59,8 +65,9 @@ export default function DiceArena() {
       args: [tierId, selectedSeat],
       value: parseEther(cost),
       chainId: celo.id,
-      gas: 200000n,
-      maxPriorityFeePerGas: parseUnits('0.1', 9),
+      gas: 500000n,
+      maxPriorityFeePerGas: parseUnits('0.5', 9),
+      maxFeePerGas: parseUnits('10', 9),
     } as any);
   };
 
@@ -223,7 +230,12 @@ export default function DiceArena() {
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-2xl text-center">
-          <p className="text-red-500 text-[10px] font-black uppercase tracking-tight">{error.message.split('\n')[0]}</p>
+          <p className="text-red-500 text-[10px] font-black uppercase tracking-tight">
+            {error.name === 'ContractFunctionExecutionError'
+              ? (error as any).shortMessage || error.message.split('\n')[0]
+              : error.message.split('\n')[0]}
+          </p>
+          <p className="text-[8px] text-red-500/60 mt-1 uppercase font-bold tracking-tighter">Check console for details</p>
         </div>
       )}
     </div>
