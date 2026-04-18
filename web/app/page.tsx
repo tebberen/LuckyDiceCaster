@@ -16,7 +16,7 @@ const config = createConfig({
   chains: [celo],
   connectors: [farcasterMiniApp()],
   transports: {
-    [celo.id]: http(),
+    [celo.id]: http("https://forno.celo.org"),
   },
 });
 
