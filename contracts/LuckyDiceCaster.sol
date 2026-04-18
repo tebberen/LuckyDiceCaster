@@ -127,4 +127,8 @@ contract LuckyDiceCaster {
     function getLeaderboard() external view returns (address[] memory) {
         return leaderboard;
     }
+
+    function getTablePlayers(TableTier tier) external view returns (address[] memory) {
+        return tables[tier].players;
+    }
 }
