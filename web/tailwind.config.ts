@@ -8,8 +8,8 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#000000",
-        foreground: "#FBCC5C",
+        background: "#FBCC5C",
+        foreground: "#FFFFFF",
         gold: {
           DEFAULT: "#FBCC5C",
           dark: "#D4A83E",

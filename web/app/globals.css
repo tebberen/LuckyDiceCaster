@@ -11,8 +11,8 @@
 }
 
 :root {
-  --background: #101010;
-  --foreground: #F0F0F0;
+  --background: #FBCC5C;
+  --foreground: #FFFFFF;
 }
 
 body {
@@ -20,6 +20,7 @@ body {
   background: var(--background);
   font-family: system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 @layer utilities {
@@ -42,10 +43,10 @@ body {
   width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #101010;
+  background: #FBCC5C;
 }
 ::-webkit-scrollbar-thumb {
-  background: #FBCC5C33;
+  background: #FFFFFF33;
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
