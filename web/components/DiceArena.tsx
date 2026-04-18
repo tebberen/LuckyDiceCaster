@@ -1,9 +1,10 @@
 "use client";
 
 import { Dice6, Users } from "lucide-react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { parseEther } from "viem";
+import { parseEther, parseUnits } from "viem";
+import { celo } from "wagmi/chains";
 import { CONTRACT_ADDRESS, ABI } from "./constants";
 
 const TIERS = [
@@ -13,8 +14,9 @@ const TIERS = [
 ];
 
 export default function DiceArena() {
-  const { isConnected } = useAccount();
+  const { isConnected, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
+  const { switchChain } = useSwitchChain();
   const { writeContract, data: hash, isPending: isSigning, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
@@ -26,12 +28,20 @@ export default function DiceArena() {
       return;
     }
 
+    if (chainId !== celo.id) {
+      switchChain({ chainId: celo.id });
+      return;
+    }
+
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: ABI,
       functionName: 'joinTable',
       args: [tierId],
       value: parseEther(cost),
+      chainId: celo.id,
+      gas: 200000n,
+      maxPriorityFeePerGas: parseUnits('0.1', 9),
     } as any);
   };
 
