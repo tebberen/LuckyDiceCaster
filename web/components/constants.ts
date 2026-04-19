@@ -17,7 +17,7 @@ export const ABI = [
     ],
     "name": "getTablePlayers",
     "outputs": [
-      { "internalType": "address[6]", "name": "", "type": "address[6]" }
+      { "internalType": "address[]", "name": "", "type": "address[]" }
     ],
     "stateMutability": "view",
     "type": "function"
