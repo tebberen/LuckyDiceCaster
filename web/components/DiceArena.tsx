@@ -62,15 +62,16 @@ export default function DiceArena() {
     try {
       // 1. PRE-FLIGHT VALIDATION: Fetch latest state from blockchain
       if (publicClient) {
-        console.log("FETCHING LATEST TABLE STATE FOR PRE-FLIGHT...");
-        const latestPlayers = (await (publicClient as any).readContract({
-          address: CONTRACT_ADDRESS,
-          abi: ABI,
-          functionName: 'getTablePlayers',
-          args: [tierId],
-        })) as unknown as `0x${string}`[];
+        try {
+          console.log("FETCHING LATEST TABLE STATE FOR PRE-FLIGHT...");
+          const latestPlayers = (await (publicClient as any).readContract({
+            address: CONTRACT_ADDRESS,
+            abi: ABI,
+            functionName: 'getTablePlayers',
+            args: [Number(tierId)],
+          })) as unknown as `0x${string}`[];
 
-        // Check if seat is occupied
+          // Check if seat is occupied
         if (latestPlayers[selectedSeat] !== "0x0000000000000000000000000000000000000000") {
           console.error("PRE-FLIGHT REJECTION: Seat occupied in latest block.", {
             seat: selectedSeat,
@@ -96,39 +97,39 @@ export default function DiceArena() {
           return;
         }
 
-        console.log("PRE-FLIGHT SUCCESS: Seat is available and user is eligible.");
+          console.log("PRE-FLIGHT SUCCESS: Seat is available and user is eligible.");
+        } catch (readError) {
+          console.error("PRE-FLIGHT READ FAILED (PROCEEDING TO WALLET):", readError);
+        }
       }
 
-      let maxFeePerGas;
-      let maxPriorityFeePerGas;
+      let maxFeePerGas = parseUnits('30', 9);
+      let maxPriorityFeePerGas = parseUnits('5', 9);
 
       if (publicClient) {
-        const feeData = await publicClient.estimateFeesPerGas();
-        if (feeData.maxFeePerGas) {
-          // Add 20% safety buffer to maxFeePerGas
-          maxFeePerGas = (feeData.maxFeePerGas * 120n) / 100n;
+        try {
+          const feeData = await publicClient.estimateFeesPerGas();
+          if (feeData.maxFeePerGas) {
+            // Add 20% safety buffer to maxFeePerGas, but ensure it's at least 30 gwei
+            const bufferedFee = (feeData.maxFeePerGas * 120n) / 100n;
+            const minFee = parseUnits('30', 9);
+            maxFeePerGas = bufferedFee > minFee ? bufferedFee : minFee;
+          }
+
+          if (feeData.maxPriorityFeePerGas) {
+            const minPriority = parseUnits('5', 9);
+            maxPriorityFeePerGas = feeData.maxPriorityFeePerGas > minPriority ? feeData.maxPriorityFeePerGas : minPriority;
+          }
+        } catch (feeErr) {
+          console.error("Fee estimation failed, using hardcoded defaults:", feeErr);
         }
-
-        if (feeData.maxPriorityFeePerGas) {
-          maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-        }
-      }
-
-      // Fallbacks & Hardcoded Minimums
-      const minPriorityFee = parseUnits('0.001', 9);
-      if (!maxPriorityFeePerGas || maxPriorityFeePerGas < minPriorityFee) {
-        maxPriorityFeePerGas = minPriorityFee;
-      }
-
-      if (!maxFeePerGas) {
-        maxFeePerGas = parseUnits('10', 9);
       }
 
       console.log("PRE-TRANSACTION AUDIT:", {
         tierId,
         selectedSeat_zeroIndexed: selectedSeat,
         selectedSeat_visual: (selectedSeat as number) + 1,
-        valueETH: cost,
+        valueCELO: cost,
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
         chainId: celo.id
@@ -140,6 +141,7 @@ export default function DiceArena() {
         functionName: 'joinTable',
         args: [tierId, selectedSeat],
         value: parseEther(cost),
+        chain: celo,
         chainId: celo.id,
         gas: 500000n,
         type: 'eip1559',
@@ -147,13 +149,13 @@ export default function DiceArena() {
         maxFeePerGas,
       } as any);
     } catch (err) {
-      console.error("Fee estimation failed:", err);
+      console.error("UNEXPECTED ERROR IN handleJoin:", err);
 
       console.log("FALLBACK PRE-TRANSACTION AUDIT:", {
         tierId,
         selectedSeat_zeroIndexed: selectedSeat,
         selectedSeat_visual: (selectedSeat as number) + 1,
-        valueETH: cost,
+        valueCELO: cost,
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
         chainId: celo.id
@@ -166,11 +168,12 @@ export default function DiceArena() {
         functionName: 'joinTable',
         args: [tierId, selectedSeat],
         value: parseEther(cost),
+        chain: celo,
         chainId: celo.id,
         gas: 500000n,
         type: 'eip1559',
-        maxPriorityFeePerGas: parseUnits('0.5', 9),
-        maxFeePerGas: parseUnits('10', 9),
+        maxPriorityFeePerGas: parseUnits('5', 9),
+        maxFeePerGas: parseUnits('30', 9),
       } as any);
     }
   };
