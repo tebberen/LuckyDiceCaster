@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@farcaster/frame-sdk": "latest",
+    "@farcaster/miniapp-sdk": "latest",
     "@farcaster/frame-wagmi-connector": "^2.0.0",
     "@farcaster/miniapp-wagmi-connector": "^2.0.0",
     "@rainbow-me/rainbowkit": "^2.2.10",
