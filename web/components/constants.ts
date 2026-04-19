@@ -3,8 +3,7 @@ export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x
 export const ABI = [
   {
     "inputs": [
-      { "internalType": "uint8", "name": "tier", "type": "uint8" },
-      { "internalType": "uint8", "name": "seatIndex", "type": "uint8" }
+      { "internalType": "uint8", "name": "tier", "type": "uint8" }
     ],
     "name": "joinTable",
     "outputs": [],
@@ -34,8 +33,10 @@ export const ABI = [
   },
   {
     "inputs": [{ "internalType": "uint8", "name": "tier", "type": "uint8" }],
-    "name": "getTablePlayers",
-    "outputs": [{ "internalType": "address[6]", "name": "", "type": "address[6]" }],
+    "name": "tables",
+    "outputs": [
+      { "internalType": "uint256", "name": "cost", "type": "uint256" }
+    ],
     "stateMutability": "view",
     "type": "function"
   }

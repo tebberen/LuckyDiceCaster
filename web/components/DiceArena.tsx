@@ -15,7 +15,7 @@ const TIERS = [
 ];
 
 export default function DiceArena() {
-  const [selectedTier, setSelectedTier] = useState(0);
+  const [selectedTierIndex, setSelectedTierIndex] = useState(0);
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const { address, isConnected, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
@@ -30,21 +30,14 @@ export default function DiceArena() {
     }
   }, [error]);
 
-  const { data: currentPlayers, refetch: refetchPlayers } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: ABI,
-    functionName: 'getTablePlayers',
-    args: [selectedTier],
-  });
-
-  useEffect(() => {
-    const interval = setInterval(() => refetchPlayers(), 5000);
-    return () => clearInterval(interval);
-  }, [refetchPlayers]);
+  // getTablePlayers is not available in the deployed contract at 0x853B...
+  // We'll use a stub for players list to maintain the circular grid UI structure.
+  const players = [] as `0x${string}`[];
+  const refetchPlayers = () => {};
 
   useEffect(() => {
     setSelectedSeat(null);
-  }, [selectedTier]);
+  }, [selectedTierIndex]);
 
   const handleJoin = async (tierId: number, cost: string) => {
     if (!isConnected) {
@@ -57,47 +50,31 @@ export default function DiceArena() {
       return;
     }
 
+    // Seat selection is visual-only for this contract version but required by UI logic
     if (selectedSeat === null) return;
 
     try {
-      // 1. PRE-FLIGHT VALIDATION: Fetch latest state from blockchain
+      // 1. PRE-FLIGHT VALIDATION: Verify table cost from contract
       if (publicClient) {
         try {
           console.log("FETCHING LATEST TABLE STATE FOR PRE-FLIGHT...");
-          const latestPlayers = (await (publicClient as any).readContract({
+          const tableCost = (await (publicClient as any).readContract({
             address: CONTRACT_ADDRESS,
             abi: ABI,
-            functionName: 'getTablePlayers',
+            functionName: 'tables',
             args: [Number(tierId)],
-          })) as unknown as `0x${string}`[];
+          })) as unknown as bigint;
 
-          // Check if seat is occupied
-        if (latestPlayers[selectedSeat] !== "0x0000000000000000000000000000000000000000") {
-          console.error("PRE-FLIGHT REJECTION: Seat occupied in latest block.", {
-            seat: selectedSeat,
-            occupant: latestPlayers[selectedSeat]
-          });
-          alert("This seat was just taken! Please select another one.");
-          refetchPlayers();
-          return;
-        }
+          if (parseEther(cost) !== tableCost) {
+            console.error("PRE-FLIGHT REJECTION: Cost mismatch.", {
+              uiCost: parseEther(cost).toString(),
+              contractCost: tableCost.toString()
+            });
+            alert("Table cost mismatch! Please refresh.");
+            return;
+          }
 
-        // Check if user is already in
-        if (address && latestPlayers.some(p => p.toLowerCase() === address.toLowerCase())) {
-          console.error("PRE-FLIGHT REJECTION: User already in table.");
-          alert("You are already registered for this table!");
-          return;
-        }
-
-        // Check if table is full
-        const playerCount = latestPlayers.filter(p => p !== "0x0000000000000000000000000000000000000000").length;
-        if (playerCount >= 6) {
-          console.error("PRE-FLIGHT REJECTION: Table full.");
-          alert("This table just became full! Please try another tier.");
-          return;
-        }
-
-          console.log("PRE-FLIGHT SUCCESS: Seat is available and user is eligible.");
+          console.log("PRE-FLIGHT SUCCESS: Table exists and cost matches.");
         } catch (readError) {
           console.error("PRE-FLIGHT READ FAILED (PROCEEDING TO WALLET):", readError);
         }
@@ -110,7 +87,6 @@ export default function DiceArena() {
         try {
           const feeData = await publicClient.estimateFeesPerGas();
           if (feeData.maxFeePerGas) {
-            // Add 20% safety buffer to maxFeePerGas, but ensure it's at least 30 gwei
             const bufferedFee = (feeData.maxFeePerGas * 120n) / 100n;
             const minFee = parseUnits('30', 9);
             maxFeePerGas = bufferedFee > minFee ? bufferedFee : minFee;
@@ -126,20 +102,19 @@ export default function DiceArena() {
       }
 
       console.log("PRE-TRANSACTION AUDIT:", {
-        tierId,
-        selectedSeat_zeroIndexed: selectedSeat,
-        selectedSeat_visual: (selectedSeat as number) + 1,
+        tierId: Number(tierId),
         valueCELO: cost,
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
-        chainId: celo.id
+        chainId: celo.id,
+        note: "Deployed contract uses 1-argument joinTable(uint8 tier)"
       });
 
       writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: 'joinTable',
-        args: [tierId, selectedSeat],
+        args: [Number(tierId)],
         value: parseEther(cost),
         chain: celo,
         chainId: celo.id,
@@ -152,21 +127,18 @@ export default function DiceArena() {
       console.error("UNEXPECTED ERROR IN handleJoin:", err);
 
       console.log("FALLBACK PRE-TRANSACTION AUDIT:", {
-        tierId,
-        selectedSeat_zeroIndexed: selectedSeat,
-        selectedSeat_visual: (selectedSeat as number) + 1,
+        tierId: Number(tierId),
         valueCELO: cost,
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
         chainId: celo.id
       });
 
-      // Fallback if estimation fails entirely
       writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: 'joinTable',
-        args: [tierId, selectedSeat],
+        args: [Number(tierId)],
         value: parseEther(cost),
         chain: celo,
         chainId: celo.id,
@@ -178,10 +150,9 @@ export default function DiceArena() {
     }
   };
 
-  const players = (currentPlayers as unknown as `0x${string}`[]) || [];
-  const spotsLeft = 6 - players.filter(p => p !== "0x0000000000000000000000000000000000000000").length;
-  const progressWidth = (players.filter(p => p !== "0x0000000000000000000000000000000000000000").length / 6) * 100;
-  const isUserIn = players.some(p => p.toLowerCase() === address?.toLowerCase());
+  const spotsLeft = 6;
+  const progressWidth = 0;
+  const isUserIn = false;
 
   const formatAddr = (addr: string) => `${addr.slice(0, 4)}...${addr.slice(-4)}`;
 
@@ -189,12 +160,12 @@ export default function DiceArena() {
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Tier Cards */}
       <div className="grid grid-cols-3 gap-2">
-        {TIERS.map((tier) => (
+        {TIERS.map((tier, index) => (
           <button
             key={tier.id}
-            onClick={() => setSelectedTier(tier.id)}
+            onClick={() => setSelectedTierIndex(index)}
             className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-300 bg-premium-gradient shadow-premium ${
-              selectedTier === tier.id
+              selectedTierIndex === index
                 ? "border-gold-premium ring-2 ring-gold-premium/10 scale-[1.02]"
                 : "border-black/5 opacity-80 hover:opacity-100"
             }`}
@@ -224,19 +195,19 @@ export default function DiceArena() {
                   <Dice6 className="w-3 h-3 text-deep-black" />
                </div>
                <span className="text-2xl font-black text-deep-black">
-                {players.length * Number(TIERS[selectedTier].cost)} CELO
+                {TIERS[selectedTierIndex].cost} CELO+
                </span>
             </div>
           </div>
           <div className="text-right">
-             <span className="text-[10px] font-black text-deep-black/80">{players.length} / 6 players</span>
+             <span className="text-[10px] font-black text-deep-black/80">Pool Active</span>
              <div className="w-24 h-1.5 bg-black/5 rounded-full mt-1.5 overflow-hidden">
                 <div
                   className="h-full bg-celo-yellow transition-all duration-500 rounded-full"
                   style={{ width: `${progressWidth}%` }}
                 />
              </div>
-             <span className="text-[8px] text-black/40 font-bold mt-1 block uppercase">{spotsLeft} slots left</span>
+             <span className="text-[8px] text-black/40 font-bold mt-1 block uppercase">Join to fill pot</span>
           </div>
         </div>
 
@@ -254,35 +225,27 @@ export default function DiceArena() {
         {/* Player Grid */}
         <div className="grid grid-cols-3 gap-3">
           {[...Array(6)].map((_, i) => {
-            const player = players[i];
-            const isOccupied = player && player !== "0x0000000000000000000000000000000000000000";
-            const isYou = isOccupied && player?.toLowerCase() === address?.toLowerCase();
             const isSelected = selectedSeat === i;
 
             return (
               <button
                 key={i}
-                disabled={!!isOccupied || isUserIn}
                 onClick={() => setSelectedSeat(isSelected ? null : i)}
                 className={`aspect-square rounded-full border flex flex-col items-center justify-center p-2 gap-1.5 transition-all ${
-                  isOccupied
-                    ? isYou ? "bg-white border-gold-premium shadow-lg shadow-gold-premium/10" : "bg-black/5 border-black/5"
-                    : isSelected
-                      ? "bg-celo-yellow/10 border-celo-yellow shadow-md scale-105"
-                      : "bg-transparent border-black/10 border-dashed hover:border-celo-yellow/40 hover:bg-celo-yellow/5"
+                  isSelected
+                    ? "bg-celo-yellow/10 border-celo-yellow shadow-md scale-105"
+                    : "bg-transparent border-black/10 border-dashed hover:border-celo-yellow/40 hover:bg-celo-yellow/5"
                 }`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black ${
-                   isOccupied
-                     ? isYou ? "bg-celo-yellow text-deep-black" : "bg-black/10 text-black/40"
-                     : isSelected ? "bg-celo-yellow text-deep-black" : "bg-transparent text-black/20"
-                } ${!isOccupied && !isSelected ? "border border-black/10" : ""}`}>
+                   isSelected ? "bg-celo-yellow text-deep-black" : "bg-transparent text-black/20"
+                } ${!isSelected ? "border border-black/10" : ""}`}>
                   {i + 1}
                 </div>
                 <span className={`text-[8px] font-black truncate w-full text-center uppercase tracking-tighter ${
-                  isOccupied ? isYou ? "text-celo-yellow" : "text-black/20" : isSelected ? "text-deep-black" : "text-black/20"
+                  isSelected ? "text-deep-black" : "text-black/20"
                 }`}>
-                  {isOccupied ? (isYou ? "YOU" : formatAddr(player)) : isSelected ? "SELECTED" : "EMPTY"}
+                  {isSelected ? "SELECTED" : "EMPTY"}
                 </span>
               </button>
             );
@@ -291,22 +254,14 @@ export default function DiceArena() {
 
         {/* Round Status */}
         <button className="w-full py-3 px-4 bg-black/5 border border-black/5 rounded-2xl flex justify-between items-center hover:bg-black/10 transition-colors">
-           <span className="text-[9px] font-black text-black/40 uppercase tracking-widest">ROUND #17937 • {players.length}/6 PLAYERS</span>
+           <span className="text-[9px] font-black text-black/40 uppercase tracking-widest">ROUND ACTIVE • JOIN NOW</span>
            <ChevronDown className="w-3 h-3 text-black/20" />
         </button>
 
         {/* Join Action */}
         <div className="pt-2 text-center">
-          {isUserIn ? (
-            <div className="py-3 text-[11px] font-black text-deep-black flex flex-col items-center gap-1">
-               <div className="flex items-center gap-1.5">
-                You're in with <span className="bg-celo-yellow text-deep-black px-1.5 py-0.5 rounded shadow-sm">#{players.findIndex(p => p.toLowerCase() === address?.toLowerCase()) + 1}</span>
-               </div>
-               <span className="text-[9px] text-black/40 uppercase tracking-widest font-black">waiting for {spotsLeft} more</span>
-            </div>
-          ) : (
             <button
-              onClick={() => handleJoin(selectedTier, TIERS[selectedTier].cost)}
+              onClick={() => handleJoin(TIERS[selectedTierIndex].id, TIERS[selectedTierIndex].cost)}
               disabled={isSigning || isConfirming || (isConnected && selectedSeat === null)}
               className="w-full py-4 bg-celo-yellow text-deep-black font-black text-xs rounded-2xl shadow-premium hover:bg-gold-dark active:scale-[0.98] transition-all disabled:opacity-50 disabled:bg-black/5 disabled:text-black/20 uppercase tracking-widest"
             >
@@ -314,9 +269,8 @@ export default function DiceArena() {
                isSigning ? "Signing..." :
                isConfirming ? "Confirming..." :
                selectedSeat === null ? "Select a Seat" :
-               `Join for ${TIERS[selectedTier].cost} CELO`}
+               `Join for ${TIERS[selectedTierIndex].cost} CELO`}
             </button>
-          )}
         </div>
       </div>
 
