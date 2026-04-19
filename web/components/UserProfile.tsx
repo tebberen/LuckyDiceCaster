@@ -12,7 +12,12 @@ export default function UserProfile() {
     abi: ABI,
     functionName: 'playerXP',
     args: address ? [address] : undefined,
-    query: { enabled: !!address }
+    chainId: 42220,
+    query: {
+      enabled: !!address,
+      retry: false,
+      staleTime: 5000,
+    }
   });
 
   const { data: wins } = useReadContract({
@@ -20,13 +25,23 @@ export default function UserProfile() {
     abi: ABI,
     functionName: 'playerWins',
     args: address ? [address] : undefined,
-    query: { enabled: !!address }
+    chainId: 42220,
+    query: {
+      enabled: !!address,
+      retry: false,
+      staleTime: 5000,
+    }
   });
 
   const { data: leaderboard } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: ABI,
     functionName: 'getLeaderboard',
+    chainId: 42220,
+    query: {
+      retry: false,
+      staleTime: 5000,
+    }
   });
 
   const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;

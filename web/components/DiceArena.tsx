@@ -35,6 +35,11 @@ export default function DiceArena() {
     abi: ABI,
     functionName: 'getTablePlayers',
     args: [selectedTier],
+    chainId: celo.id,
+    query: {
+      retry: false,
+      staleTime: 5000,
+    }
   });
 
   useEffect(() => {
@@ -60,70 +65,38 @@ export default function DiceArena() {
     if (selectedSeat === null) return;
 
     try {
-      // 1. PRE-FLIGHT VALIDATION: Fetch latest state from blockchain
-      if (publicClient) {
-        try {
-          console.log("FETCHING LATEST TABLE STATE FOR PRE-FLIGHT...");
-          const latestPlayers = (await (publicClient as any).readContract({
-            address: CONTRACT_ADDRESS,
-            abi: ABI,
-            functionName: 'getTablePlayers',
-            args: [Number(tierId)],
-          })) as unknown as `0x${string}`[];
+      // 1. ELIGIBILITY CHECK: Use current hook data for immediate validation
+      const latestPlayers = (currentPlayers as unknown as `0x${string}`[]) || [];
 
-          // Check if seat is occupied
-        if (latestPlayers[selectedSeat] !== "0x0000000000000000000000000000000000000000") {
-          console.error("PRE-FLIGHT REJECTION: Seat occupied in latest block.", {
-            seat: selectedSeat,
-            occupant: latestPlayers[selectedSeat]
-          });
-          alert("This seat was just taken! Please select another one.");
-          refetchPlayers();
-          return;
-        }
-
-        // Check if user is already in
-        if (address && latestPlayers.some(p => p.toLowerCase() === address.toLowerCase())) {
-          console.error("PRE-FLIGHT REJECTION: User already in table.");
-          alert("You are already registered for this table!");
-          return;
-        }
-
-        // Check if table is full
-        const playerCount = latestPlayers.filter(p => p !== "0x0000000000000000000000000000000000000000").length;
-        if (playerCount >= 6) {
-          console.error("PRE-FLIGHT REJECTION: Table full.");
-          alert("This table just became full! Please try another tier.");
-          return;
-        }
-
-          console.log("PRE-FLIGHT SUCCESS: Seat is available and user is eligible.");
-        } catch (readError) {
-          console.error("PRE-FLIGHT READ FAILED (PROCEEDING TO WALLET):", readError);
-        }
+      // Check if seat is occupied
+      if (latestPlayers[selectedSeat] && latestPlayers[selectedSeat] !== "0x0000000000000000000000000000000000000000") {
+        console.error("PRE-FLIGHT REJECTION: Seat occupied.", {
+          seat: selectedSeat,
+          occupant: latestPlayers[selectedSeat]
+        });
+        alert("This seat is occupied! Please select another one.");
+        refetchPlayers();
+        return;
       }
 
-      let maxFeePerGas = parseUnits('30', 9);
-      let maxPriorityFeePerGas = parseUnits('5', 9);
-
-      if (publicClient) {
-        try {
-          const feeData = await publicClient.estimateFeesPerGas();
-          if (feeData.maxFeePerGas) {
-            // Add 20% safety buffer to maxFeePerGas, but ensure it's at least 30 gwei
-            const bufferedFee = (feeData.maxFeePerGas * 120n) / 100n;
-            const minFee = parseUnits('30', 9);
-            maxFeePerGas = bufferedFee > minFee ? bufferedFee : minFee;
-          }
-
-          if (feeData.maxPriorityFeePerGas) {
-            const minPriority = parseUnits('5', 9);
-            maxPriorityFeePerGas = feeData.maxPriorityFeePerGas > minPriority ? feeData.maxPriorityFeePerGas : minPriority;
-          }
-        } catch (feeErr) {
-          console.error("Fee estimation failed, using hardcoded defaults:", feeErr);
-        }
+      // Check if user is already in
+      if (address && latestPlayers.some(p => p.toLowerCase() === address.toLowerCase())) {
+        console.error("PRE-FLIGHT REJECTION: User already in table.");
+        alert("You are already registered for this table!");
+        return;
       }
+
+      // Check if table is full
+      const playerCount = latestPlayers.filter(p => p !== "0x0000000000000000000000000000000000000000").length;
+      if (playerCount >= 6) {
+        console.error("PRE-FLIGHT REJECTION: Table full.");
+        alert("This table is full! Please try another tier.");
+        return;
+      }
+
+      // 2. FORCE AGGRESSIVE GAS FEES (To ensure success on Celo)
+      const maxFeePerGas = parseUnits('40', 9);
+      const maxPriorityFeePerGas = parseUnits('5', 9);
 
       console.log("PRE-TRANSACTION AUDIT:", {
         tierId,
@@ -173,7 +146,7 @@ export default function DiceArena() {
         gas: 500000n,
         type: 'eip1559',
         maxPriorityFeePerGas: parseUnits('5', 9),
-        maxFeePerGas: parseUnits('30', 9),
+        maxFeePerGas: parseUnits('40', 9),
       } as any);
     }
   };
