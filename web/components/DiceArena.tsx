@@ -9,9 +9,9 @@ import { celo } from "wagmi/chains";
 import { CONTRACT_ADDRESS, ABI } from "./constants";
 
 const TIERS = [
-  { id: 0, label: "1", cost: "1", bonus: "+1XP", currency: "CELO" },
-  { id: 1, label: "5", cost: "5", bonus: "+5XP", currency: "CELO" },
-  { id: 2, label: "10", cost: "10", bonus: "+10XP", currency: "CELO" },
+  { id: 1, label: "1", cost: "1", bonus: "+1XP", currency: "CELO" },
+  { id: 2, label: "5", cost: "5", bonus: "+5XP", currency: "CELO" },
+  { id: 3, label: "10", cost: "10", bonus: "+10XP", currency: "CELO" },
 ];
 
 export default function DiceArena() {
@@ -24,7 +24,7 @@ export default function DiceArena() {
   const { writeContract, data: hash, isPending: isSigning, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  const { data: playersData, refetch: refetchPlayers } = useReadContract({
+  const { data: playersData, refetch: refetchPlayers, isFetching } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: ABI,
     functionName: 'getTablePlayers',
@@ -35,6 +35,7 @@ export default function DiceArena() {
   });
 
   const players = (playersData as unknown as `0x${string}`[]) || [];
+  const isLoadingData = isFetching && players.length === 0;
 
   useEffect(() => {
     if (error) {
@@ -70,10 +71,32 @@ export default function DiceArena() {
     if (selectedSeat === null) return;
 
     try {
-      // 1. PRE-FLIGHT VALIDATION: Verify table cost from contract
+      // 1. FORCE REFRESH & PRE-FLIGHT VALIDATION
       if (publicClient) {
         try {
-          console.log("FETCHING LATEST TABLE STATE FOR PRE-FLIGHT...");
+          console.log("FORCE REFRESH: Fetching latest table state directly from provider...");
+          const freshPlayers = await (publicClient as any).readContract({
+            address: CONTRACT_ADDRESS,
+            abi: ABI,
+            functionName: 'getTablePlayers',
+            args: [Number(tierId)],
+          }) as `0x${string}`[];
+
+          console.log("FRESH TABLE STATE:", freshPlayers);
+
+          const seatIsOccupied = freshPlayers[selectedSeat] && freshPlayers[selectedSeat] !== '0x0000000000000000000000000000000000000000';
+
+          if (seatIsOccupied) {
+            console.error("PRE-FLIGHT REJECTION: Seat is already occupied.", {
+              seatIndex: selectedSeat,
+              occupant: freshPlayers[selectedSeat]
+            });
+            alert(`Seat #${selectedSeat + 1} was just taken! Please select another seat.`);
+            refetchPlayers(); // Sync UI
+            return;
+          }
+
+          // Also check cost to be safe
           const tableCost = (await (publicClient as any).readContract({
             address: CONTRACT_ADDRESS,
             abi: ABI,
@@ -90,7 +113,7 @@ export default function DiceArena() {
             return;
           }
 
-          console.log("PRE-FLIGHT SUCCESS: Table exists and cost matches.");
+          console.log("PRE-FLIGHT SUCCESS: Seat is empty and cost matches.");
         } catch (readError) {
           console.error("PRE-FLIGHT READ FAILED (PROCEEDING TO WALLET):", readError);
         }
@@ -118,8 +141,9 @@ export default function DiceArena() {
       }
 
       console.log("PRE-TRANSACTION AUDIT:", {
+        visualSeat: Number(selectedSeat) + 1,
+        contractSeatIndex: Number(selectedSeat),
         tierId: Number(tierId),
-        seatIndex: Number(selectedSeat),
         valueCELO: cost,
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
@@ -168,9 +192,10 @@ export default function DiceArena() {
     }
   };
 
-  const spotsLeft = 6;
-  const progressWidth = 0;
-  const isUserIn = false;
+  const occupiedCount = players.filter(p => p && p !== '0x0000000000000000000000000000000000000000').length;
+  const spotsLeft = 6 - occupiedCount;
+  const progressWidth = (occupiedCount / 6) * 100;
+  const isUserIn = address && players.some(p => p?.toLowerCase() === address.toLowerCase());
 
   const formatAddr = (addr: string) => `${addr.slice(0, 4)}...${addr.slice(-4)}`;
 
@@ -251,8 +276,8 @@ export default function DiceArena() {
             return (
               <button
                 key={i}
-                onClick={() => !isOccupied && !isJoining && setSelectedSeat(isSelected ? null : i)}
-                disabled={isOccupied || isJoining}
+                onClick={() => !isOccupied && !isJoining && !isLoadingData && setSelectedSeat(isSelected ? null : i)}
+                disabled={isOccupied || isJoining || isLoadingData}
                 className={`aspect-square rounded-full border flex flex-col items-center justify-center p-2 gap-1.5 transition-all ${
                   isOccupied
                     ? "bg-black/5 border-black/10 opacity-100 cursor-default"
@@ -260,12 +285,15 @@ export default function DiceArena() {
                     ? "bg-celo-yellow/20 border-celo-yellow animate-pulse cursor-wait"
                     : isSelected
                     ? "bg-celo-yellow/10 border-celo-yellow shadow-md scale-105"
+                    : isLoadingData
+                    ? "bg-black/[0.02] border-black/5 animate-pulse"
                     : "bg-transparent border-black/10 border-dashed hover:border-celo-yellow/40 hover:bg-celo-yellow/5"
                 }`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black ${
                    isOccupied ? "bg-black/10 text-deep-black" :
                    isSelected || isJoining ? "bg-celo-yellow text-deep-black" :
+                   isLoadingData ? "bg-black/5 text-transparent" :
                    "bg-transparent text-black/20 border border-black/10"
                 }`}>
                   {i + 1}
@@ -274,11 +302,13 @@ export default function DiceArena() {
                   isOccupied ? "text-deep-black" :
                   isJoining ? "text-celo-yellow" :
                   isSelected ? "text-deep-black" :
+                  isLoadingData ? "text-black/5" :
                   "text-black/20"
                 }`}>
                   {isOccupied ? formatAddr(playerAddress) :
                    isJoining ? "JOINING..." :
                    isSelected ? "SELECTED" :
+                   isLoadingData ? "..." :
                    "EMPTY"}
                 </span>
               </button>
