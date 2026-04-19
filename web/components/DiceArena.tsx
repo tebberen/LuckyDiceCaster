@@ -46,8 +46,12 @@ export default function DiceArena() {
   useEffect(() => {
     if (isSuccess) {
       console.log("TRANSACTION SUCCESSFUL. TRIGGERING STATE REFRESH...");
+      // Immediate refetch
       refetchPlayers();
-      // Optional: Clear selection after success
+      // Multi-stage refetch to handle node lag
+      setTimeout(() => refetchPlayers(), 2000);
+      setTimeout(() => refetchPlayers(), 5000);
+
       setSelectedSeat(null);
     }
   }, [isSuccess, refetchPlayers]);
@@ -57,6 +61,9 @@ export default function DiceArena() {
   }, [selectedTierIndex]);
 
   const handleJoin = async (tierId: number, cost: string) => {
+    // 1. Audit Log of incoming parameters
+    console.log("--- HANDLE JOIN START ---", { tierId, cost, selectedSeat });
+
     if (!isConnected) {
       if (openConnectModal) openConnectModal();
       return;
@@ -67,127 +74,83 @@ export default function DiceArena() {
       return;
     }
 
-    // Seat selection is visual-only for this contract version but required by UI logic
-    if (selectedSeat === null) return;
+    if (selectedSeat === null) {
+      alert("Please select a seat first!");
+      return;
+    }
+
+    // Double check tierId to prevent (0, 5) errors - Tiers are 1-indexed (1, 2, 3)
+    let finalTierId = Number(tierId);
+    if (finalTierId === 0) {
+      console.warn("CORRECTING TIER ID: tierId was 0, setting to 1 (default tier).");
+      finalTierId = 1;
+    }
 
     try {
-      // 1. FORCE REFRESH & PRE-FLIGHT VALIDATION
+      // PRE-FLIGHT VALIDATION: Fetch latest state
       if (publicClient) {
         try {
-          console.log("FORCE REFRESH: Fetching latest table state directly from provider...");
           const freshPlayers = await (publicClient as any).readContract({
             address: CONTRACT_ADDRESS,
             abi: ABI,
             functionName: 'getTablePlayers',
-            args: [Number(tierId)],
+            args: [finalTierId],
           }) as `0x${string}`[];
-
-          console.log("FRESH TABLE STATE:", freshPlayers);
 
           const seatIsOccupied = freshPlayers[selectedSeat] && freshPlayers[selectedSeat] !== '0x0000000000000000000000000000000000000000';
 
           if (seatIsOccupied) {
-            console.error("PRE-FLIGHT REJECTION: Seat is already occupied.", {
-              seatIndex: selectedSeat,
-              occupant: freshPlayers[selectedSeat]
-            });
             alert(`Seat #${selectedSeat + 1} was just taken! Please select another seat.`);
-            refetchPlayers(); // Sync UI
+            refetchPlayers();
             return;
           }
-
-          // Also check cost to be safe
-          const tableCost = (await (publicClient as any).readContract({
-            address: CONTRACT_ADDRESS,
-            abi: ABI,
-            functionName: 'tables',
-            args: [Number(tierId)],
-          })) as unknown as bigint;
-
-          if (parseEther(cost) !== tableCost) {
-            console.error("PRE-FLIGHT REJECTION: Cost mismatch.", {
-              uiCost: parseEther(cost).toString(),
-              contractCost: tableCost.toString()
-            });
-            alert("Table cost mismatch! Please refresh.");
-            return;
-          }
-
-          console.log("PRE-FLIGHT SUCCESS: Seat is empty and cost matches.");
         } catch (readError) {
-          console.error("PRE-FLIGHT READ FAILED (PROCEEDING TO WALLET):", readError);
+          console.error("PRE-FLIGHT READ FAILED (PROCEEDING):", readError);
         }
       }
 
-      let maxFeePerGas = parseUnits('30', 9);
-      let maxPriorityFeePerGas = parseUnits('5', 9);
-
-      if (publicClient) {
-        try {
-          const feeData = await publicClient.estimateFeesPerGas();
-          if (feeData.maxFeePerGas) {
-            const bufferedFee = (feeData.maxFeePerGas * 120n) / 100n;
-            const minFee = parseUnits('30', 9);
-            maxFeePerGas = bufferedFee > minFee ? bufferedFee : minFee;
-          }
-
-          if (feeData.maxPriorityFeePerGas) {
-            const minPriority = parseUnits('5', 9);
-            maxPriorityFeePerGas = feeData.maxPriorityFeePerGas > minPriority ? feeData.maxPriorityFeePerGas : minPriority;
-          }
-        } catch (feeErr) {
-          console.error("Fee estimation failed, using hardcoded defaults:", feeErr);
-        }
-      }
+      // MANDATORY GAS MANAGEMENT: Use 50 gwei max fee and 5 gwei priority fee
+      const maxFeePerGas = parseUnits('50', 9);
+      const maxPriorityFeePerGas = parseUnits('5', 9);
 
       console.log("PRE-TRANSACTION AUDIT:", {
         visualSeat: Number(selectedSeat) + 1,
         contractSeatIndex: Number(selectedSeat),
-        tierId: Number(tierId),
+        tierId: finalTierId,
         valueCELO: cost,
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
         chainId: celo.id,
-        note: "Deployed contract uses 2-argument joinTable(uint8 tier, uint8 seatIndex)"
+        gasFees: { maxFeePerGas: "50 gwei", maxPriorityFeePerGas: "5 gwei" },
+        note: "Ensuring 1-indexed tier and 0-indexed seatIndex"
       });
 
       writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: 'joinTable',
-        args: [Number(tierId), Number(selectedSeat)],
+        args: [finalTierId, Number(selectedSeat)],
         value: parseEther(cost),
         chain: celo,
         chainId: celo.id,
         gas: 500000n,
-        type: 'eip1559',
         maxPriorityFeePerGas,
         maxFeePerGas,
       } as any);
     } catch (err) {
       console.error("UNEXPECTED ERROR IN handleJoin:", err);
-
-      console.log("FALLBACK PRE-TRANSACTION AUDIT:", {
-        tierId: Number(tierId),
-        seatIndex: Number(selectedSeat),
-        valueCELO: cost,
-        valueWei: parseEther(cost).toString(),
-        contractAddress: CONTRACT_ADDRESS,
-        chainId: celo.id
-      });
-
+      // Fallback with mandatory gas
       writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: 'joinTable',
-        args: [Number(tierId), Number(selectedSeat)],
+        args: [finalTierId, Number(selectedSeat)],
         value: parseEther(cost),
         chain: celo,
         chainId: celo.id,
         gas: 500000n,
-        type: 'eip1559',
         maxPriorityFeePerGas: parseUnits('5', 9),
-        maxFeePerGas: parseUnits('30', 9),
+        maxFeePerGas: parseUnits('50', 9),
       } as any);
     }
   };
