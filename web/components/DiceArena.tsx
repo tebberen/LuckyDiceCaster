@@ -7,6 +7,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseEther, parseUnits, formatEther } from "viem";
 import { celo } from "viem/chains";
 import { CONTRACT_ADDRESS, ABI } from "./constants";
+import { useLuckyDice } from "../hooks/useLuckyDice";
 
 const TIERS = [
   { id: 1, label: "1", cost: "1", bonus: "+1XP", currency: "CELO" },
@@ -23,6 +24,7 @@ export default function DiceArena() {
   const publicClient = usePublicClient();
   const { writeContract, data: hash, isPending: isSigning, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { getCeloGasSettings, toCelo } = useLuckyDice();
 
   const { data: playersData, refetch: refetchPlayers, isFetching } = useReadContract({
     address: CONTRACT_ADDRESS,
@@ -109,19 +111,18 @@ export default function DiceArena() {
         }
       }
 
-      // MANDATORY GAS MANAGEMENT: Use 35 gwei max fee and 5 gwei priority fee
-      const maxFeePerGas = parseUnits('35', 9);
-      const maxPriorityFeePerGas = parseUnits('5', 9);
+      // MANDATORY GAS MANAGEMENT: Use settings from our specialized hook
+      const gasSettings = getCeloGasSettings();
 
       console.log("PRE-TRANSACTION AUDIT:", {
         visualSeat: Number(selectedSeat) + 1,
         contractSeatIndex: Number(selectedSeat),
         tierId: finalTierId,
         valueCELO: cost,
-        valueWei: parseEther(cost).toString(),
+        valueWei: toCelo(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
         chainId: celo.id,
-        gasFees: { maxFeePerGas: "35 gwei", maxPriorityFeePerGas: "5 gwei" },
+        gasFees: gasSettings,
         note: "Ensuring 1-indexed tier and 0-indexed seatIndex"
       });
 
@@ -130,12 +131,10 @@ export default function DiceArena() {
         abi: ABI,
         functionName: 'joinTable',
         args: [finalTierId, Number(selectedSeat)],
-        value: parseEther(cost),
+        value: toCelo(cost),
         chain: celo,
         chainId: celo.id,
-        gas: 500000n,
-        maxPriorityFeePerGas,
-        maxFeePerGas,
+        ...gasSettings,
       } as any);
     } catch (err) {
       console.error("UNEXPECTED ERROR IN handleJoin:", err);
