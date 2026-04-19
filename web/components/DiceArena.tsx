@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Dice6, Users, Wallet, Trophy, ChevronDown, CheckCircle2 } from "lucide-react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract, usePublicClient } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseEther, parseUnits, formatEther } from "viem";
 import { celo } from "wagmi/chains";
@@ -20,6 +20,7 @@ export default function DiceArena() {
   const { address, isConnected, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
   const { switchChain } = useSwitchChain();
+  const publicClient = usePublicClient();
   const { writeContract, data: hash, isPending: isSigning, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
@@ -45,7 +46,7 @@ export default function DiceArena() {
     setSelectedSeat(null);
   }, [selectedTier]);
 
-  const handleJoin = (tierId: number, cost: string) => {
+  const handleJoin = async (tierId: number, cost: string) => {
     if (!isConnected) {
       if (openConnectModal) openConnectModal();
       return;
@@ -58,17 +59,60 @@ export default function DiceArena() {
 
     if (selectedSeat === null) return;
 
-    writeContract({
-      address: CONTRACT_ADDRESS,
-      abi: ABI,
-      functionName: 'joinTable',
-      args: [tierId, selectedSeat],
-      value: parseEther(cost),
-      chainId: celo.id,
-      gas: 500000n,
-      maxPriorityFeePerGas: parseUnits('0.5', 9),
-      maxFeePerGas: parseUnits('10', 9),
-    } as any);
+    try {
+      let maxFeePerGas;
+      let maxPriorityFeePerGas;
+
+      if (publicClient) {
+        const feeData = await publicClient.estimateFeesPerGas();
+        if (feeData.maxFeePerGas) {
+          // Add 20% safety buffer to maxFeePerGas
+          maxFeePerGas = (feeData.maxFeePerGas * 120n) / 100n;
+        }
+
+        if (feeData.maxPriorityFeePerGas) {
+          maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+        }
+      }
+
+      // Fallbacks & Hardcoded Minimums
+      const minPriorityFee = parseUnits('0.001', 9);
+      if (!maxPriorityFeePerGas || maxPriorityFeePerGas < minPriorityFee) {
+        maxPriorityFeePerGas = minPriorityFee;
+      }
+
+      if (!maxFeePerGas) {
+        maxFeePerGas = parseUnits('10', 9);
+      }
+
+      writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: ABI,
+        functionName: 'joinTable',
+        args: [tierId, selectedSeat],
+        value: parseEther(cost),
+        chainId: celo.id,
+        gas: 500000n,
+        type: 'eip1559',
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+      } as any);
+    } catch (err) {
+      console.error("Fee estimation failed:", err);
+      // Fallback if estimation fails entirely
+      writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: ABI,
+        functionName: 'joinTable',
+        args: [tierId, selectedSeat],
+        value: parseEther(cost),
+        chainId: celo.id,
+        gas: 500000n,
+        type: 'eip1559',
+        maxPriorityFeePerGas: parseUnits('0.5', 9),
+        maxFeePerGas: parseUnits('10', 9),
+      } as any);
+    }
   };
 
   const players = (currentPlayers as unknown as `0x${string}`[]) || [];
