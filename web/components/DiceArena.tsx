@@ -60,6 +60,45 @@ export default function DiceArena() {
     if (selectedSeat === null) return;
 
     try {
+      // 1. PRE-FLIGHT VALIDATION: Fetch latest state from blockchain
+      if (publicClient) {
+        console.log("FETCHING LATEST TABLE STATE FOR PRE-FLIGHT...");
+        const latestPlayers = (await (publicClient as any).readContract({
+          address: CONTRACT_ADDRESS,
+          abi: ABI,
+          functionName: 'getTablePlayers',
+          args: [tierId],
+        })) as unknown as `0x${string}`[];
+
+        // Check if seat is occupied
+        if (latestPlayers[selectedSeat] !== "0x0000000000000000000000000000000000000000") {
+          console.error("PRE-FLIGHT REJECTION: Seat occupied in latest block.", {
+            seat: selectedSeat,
+            occupant: latestPlayers[selectedSeat]
+          });
+          alert("This seat was just taken! Please select another one.");
+          refetchPlayers();
+          return;
+        }
+
+        // Check if user is already in
+        if (address && latestPlayers.some(p => p.toLowerCase() === address.toLowerCase())) {
+          console.error("PRE-FLIGHT REJECTION: User already in table.");
+          alert("You are already registered for this table!");
+          return;
+        }
+
+        // Check if table is full
+        const playerCount = latestPlayers.filter(p => p !== "0x0000000000000000000000000000000000000000").length;
+        if (playerCount >= 6) {
+          console.error("PRE-FLIGHT REJECTION: Table full.");
+          alert("This table just became full! Please try another tier.");
+          return;
+        }
+
+        console.log("PRE-FLIGHT SUCCESS: Seat is available and user is eligible.");
+      }
+
       let maxFeePerGas;
       let maxPriorityFeePerGas;
 
@@ -85,6 +124,16 @@ export default function DiceArena() {
         maxFeePerGas = parseUnits('10', 9);
       }
 
+      console.log("PRE-TRANSACTION AUDIT:", {
+        tierId,
+        selectedSeat_zeroIndexed: selectedSeat,
+        selectedSeat_visual: (selectedSeat as number) + 1,
+        valueETH: cost,
+        valueWei: parseEther(cost).toString(),
+        contractAddress: CONTRACT_ADDRESS,
+        chainId: celo.id
+      });
+
       writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
@@ -99,6 +148,17 @@ export default function DiceArena() {
       } as any);
     } catch (err) {
       console.error("Fee estimation failed:", err);
+
+      console.log("FALLBACK PRE-TRANSACTION AUDIT:", {
+        tierId,
+        selectedSeat_zeroIndexed: selectedSeat,
+        selectedSeat_visual: (selectedSeat as number) + 1,
+        valueETH: cost,
+        valueWei: parseEther(cost).toString(),
+        contractAddress: CONTRACT_ADDRESS,
+        chainId: celo.id
+      });
+
       // Fallback if estimation fails entirely
       writeContract({
         address: CONTRACT_ADDRESS,
