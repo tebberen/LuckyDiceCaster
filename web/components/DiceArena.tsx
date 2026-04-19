@@ -24,16 +24,32 @@ export default function DiceArena() {
   const { writeContract, data: hash, isPending: isSigning, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
+  const { data: playersData, refetch: refetchPlayers } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: 'getTablePlayers',
+    args: [Number(TIERS[selectedTierIndex].id)],
+    query: {
+      refetchInterval: 5000, // Regular sync
+    }
+  });
+
+  const players = (playersData as unknown as `0x${string}`[]) || [];
+
   useEffect(() => {
     if (error) {
       console.error("Transaction Error Details:", error);
     }
   }, [error]);
 
-  // getTablePlayers is not available in the deployed contract at 0x853B...
-  // We'll use a stub for players list to maintain the circular grid UI structure.
-  const players = [] as `0x${string}`[];
-  const refetchPlayers = () => {};
+  useEffect(() => {
+    if (isSuccess) {
+      console.log("TRANSACTION SUCCESSFUL. TRIGGERING STATE REFRESH...");
+      refetchPlayers();
+      // Optional: Clear selection after success
+      setSelectedSeat(null);
+    }
+  }, [isSuccess, refetchPlayers]);
 
   useEffect(() => {
     setSelectedSeat(null);
@@ -103,18 +119,19 @@ export default function DiceArena() {
 
       console.log("PRE-TRANSACTION AUDIT:", {
         tierId: Number(tierId),
+        seatIndex: Number(selectedSeat),
         valueCELO: cost,
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
         chainId: celo.id,
-        note: "Deployed contract uses 1-argument joinTable(uint8 tier)"
+        note: "Deployed contract uses 2-argument joinTable(uint8 tier, uint8 seatIndex)"
       });
 
       writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: 'joinTable',
-        args: [Number(tierId)],
+        args: [Number(tierId), Number(selectedSeat)],
         value: parseEther(cost),
         chain: celo,
         chainId: celo.id,
@@ -128,6 +145,7 @@ export default function DiceArena() {
 
       console.log("FALLBACK PRE-TRANSACTION AUDIT:", {
         tierId: Number(tierId),
+        seatIndex: Number(selectedSeat),
         valueCELO: cost,
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
@@ -138,7 +156,7 @@ export default function DiceArena() {
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: 'joinTable',
-        args: [Number(tierId)],
+        args: [Number(tierId), Number(selectedSeat)],
         value: parseEther(cost),
         chain: celo,
         chainId: celo.id,
@@ -226,26 +244,42 @@ export default function DiceArena() {
         <div className="grid grid-cols-3 gap-3">
           {[...Array(6)].map((_, i) => {
             const isSelected = selectedSeat === i;
+            const playerAddress = players?.[i];
+            const isOccupied = playerAddress && playerAddress !== '0x0000000000000000000000000000000000000000';
+            const isJoining = isSelected && isConfirming;
 
             return (
               <button
                 key={i}
-                onClick={() => setSelectedSeat(isSelected ? null : i)}
+                onClick={() => !isOccupied && !isJoining && setSelectedSeat(isSelected ? null : i)}
+                disabled={isOccupied || isJoining}
                 className={`aspect-square rounded-full border flex flex-col items-center justify-center p-2 gap-1.5 transition-all ${
-                  isSelected
+                  isOccupied
+                    ? "bg-black/5 border-black/10 opacity-100 cursor-default"
+                    : isJoining
+                    ? "bg-celo-yellow/20 border-celo-yellow animate-pulse cursor-wait"
+                    : isSelected
                     ? "bg-celo-yellow/10 border-celo-yellow shadow-md scale-105"
                     : "bg-transparent border-black/10 border-dashed hover:border-celo-yellow/40 hover:bg-celo-yellow/5"
                 }`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black ${
-                   isSelected ? "bg-celo-yellow text-deep-black" : "bg-transparent text-black/20"
-                } ${!isSelected ? "border border-black/10" : ""}`}>
+                   isOccupied ? "bg-black/10 text-deep-black" :
+                   isSelected || isJoining ? "bg-celo-yellow text-deep-black" :
+                   "bg-transparent text-black/20 border border-black/10"
+                }`}>
                   {i + 1}
                 </div>
                 <span className={`text-[8px] font-black truncate w-full text-center uppercase tracking-tighter ${
-                  isSelected ? "text-deep-black" : "text-black/20"
+                  isOccupied ? "text-deep-black" :
+                  isJoining ? "text-celo-yellow" :
+                  isSelected ? "text-deep-black" :
+                  "text-black/20"
                 }`}>
-                  {isSelected ? "SELECTED" : "EMPTY"}
+                  {isOccupied ? formatAddr(playerAddress) :
+                   isJoining ? "JOINING..." :
+                   isSelected ? "SELECTED" :
+                   "EMPTY"}
                 </span>
               </button>
             );
