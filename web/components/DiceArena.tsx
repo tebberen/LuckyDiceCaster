@@ -5,7 +5,7 @@ import { Dice6, Users, Wallet, Trophy, ChevronDown, CheckCircle2 } from "lucide-
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain, useReadContract, usePublicClient } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseEther, parseUnits, formatEther } from "viem";
-import { celo } from "wagmi/chains";
+import { celo } from "viem/chains";
 import { CONTRACT_ADDRESS, ABI } from "./constants";
 
 const TIERS = [
@@ -109,8 +109,8 @@ export default function DiceArena() {
         }
       }
 
-      // MANDATORY GAS MANAGEMENT: Use 50 gwei max fee and 5 gwei priority fee
-      const maxFeePerGas = parseUnits('50', 9);
+      // MANDATORY GAS MANAGEMENT: Use 35 gwei max fee and 5 gwei priority fee
+      const maxFeePerGas = parseUnits('35', 9);
       const maxPriorityFeePerGas = parseUnits('5', 9);
 
       console.log("PRE-TRANSACTION AUDIT:", {
@@ -121,7 +121,7 @@ export default function DiceArena() {
         valueWei: parseEther(cost).toString(),
         contractAddress: CONTRACT_ADDRESS,
         chainId: celo.id,
-        gasFees: { maxFeePerGas: "50 gwei", maxPriorityFeePerGas: "5 gwei" },
+        gasFees: { maxFeePerGas: "35 gwei", maxPriorityFeePerGas: "5 gwei" },
         note: "Ensuring 1-indexed tier and 0-indexed seatIndex"
       });
 
@@ -139,19 +139,6 @@ export default function DiceArena() {
       } as any);
     } catch (err) {
       console.error("UNEXPECTED ERROR IN handleJoin:", err);
-      // Fallback with mandatory gas
-      writeContract({
-        address: CONTRACT_ADDRESS,
-        abi: ABI,
-        functionName: 'joinTable',
-        args: [finalTierId, Number(selectedSeat)],
-        value: parseEther(cost),
-        chain: celo,
-        chainId: celo.id,
-        gas: 500000n,
-        maxPriorityFeePerGas: parseUnits('5', 9),
-        maxFeePerGas: parseUnits('50', 9),
-      } as any);
     }
   };
 

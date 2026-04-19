@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import sdk from "@farcaster/miniapp-sdk";
 import { createConfig, http, WagmiProvider } from "wagmi";
-import { celo } from "wagmi/chains";
+import { celo } from "viem/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, lightTheme } from "@rainbow-me/rainbowkit";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
@@ -28,17 +28,17 @@ export default function Home() {
   useEffect(() => {
     const loadSDK = async () => {
       try {
-        // Set a short timeout to prevent blocking in non-frame environments
-        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 1000));
-        await Promise.race([sdk.actions.ready(), timeoutPromise]);
+        if (sdk && sdk.actions && typeof sdk.actions.ready === 'function') {
+          // Set a short timeout to prevent blocking in non-frame environments
+          const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 1000));
+          await Promise.race([sdk.actions.ready(), timeoutPromise]);
+        }
       } catch (error) {
         console.error("Frame SDK error:", error);
       }
       setIsSDKLoaded(true);
     };
-    if (sdk) {
-      loadSDK();
-    }
+    loadSDK();
   }, []);
 
   if (!isSDKLoaded) {
